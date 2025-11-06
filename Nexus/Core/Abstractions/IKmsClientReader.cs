@@ -7,5 +7,5 @@ namespace Nexus.Core.Abstractions;
 
 public interface IKmsClientReader
 {
-    KmsClientInfo GetClientInfo();
+    KmsClientInfo? GetClientInfo();
 }
