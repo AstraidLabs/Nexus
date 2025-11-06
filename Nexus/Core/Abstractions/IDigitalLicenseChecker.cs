@@ -1,11 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Nexus.Core.Abstractions
 {
+    /// <summary>
+    /// Rozhraní pro zjištění, zda má systém aktivní digitální licenci (např. aktivace přes Microsoft Store nebo online účet).
+    /// </summary>
     public interface IDigitalLicenseChecker
     {
-        bool? IsDigitalLicensePresent(); // null = nelze zjistit bezpečně
+        /// <summary>
+        /// Vrátí true, pokud je přítomna digitální licence.
+        /// False, pokud ne.
+        /// Null, pokud nelze spolehlivě zjistit.
+        /// </summary>
+        bool? IsDigitalLicensePresent();
     }
 }
