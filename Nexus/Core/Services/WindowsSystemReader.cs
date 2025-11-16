@@ -171,7 +171,21 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
 
         // 3) Channel + Partial Key (stringy je nutné po přečtení uvolnit)
         string? channel = TryReadStringSku(h, sku, "Channel");
-        string? ppk = TryReadStringPkey(h, sku, "PartialProductKey");
+        string? ppk = TryReadStringSku(h, sku, "PartialProductKey");
+
+        int? vlType = TryReadIntSku(h, sku, "VLActivationType");
+        Guid? pkeyId = TryReadGuidSku(h, sku, "pkeyId");
+
+        string? extendedPid = null;
+        string? productId = null;
+
+        if (pkeyId is Guid pk)
+        {
+            extendedPid = TryReadStringPkey(h, pk, "DigitalPID");
+            productId = TryReadStringPkey(h, pk, "DigitalPID2");
+            channel ??= TryReadStringPkey(h, pk, "Channel");
+            ppk ??= TryReadStringPkey(h, pk, "PartialProductKey");
+        }
 
         return new ActivationInfo
         {
@@ -181,7 +195,12 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
             GraceMinutesRemaining = grace > 0 ? grace : null,
             EvaluationEndUtc = validity > 0 ? DateTimeOffset.FromFileTime(validity) : null,
             Channel = channel,
-            PartialProductKey = ppk
+            PartialProductKey = ppk,
+            VlActivationType = vlType is int rawVl && Enum.IsDefined(typeof(VolumeActivationType), rawVl)
+                ? (VolumeActivationType)rawVl
+                : null,
+            ExtendedPid = extendedPid,
+            ProductId = productId
         };
     }
 
@@ -214,6 +233,21 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
             return null;
 
         return SlApiBuffer.ReadAndFreeUniString(ptr);
+    }
+
+    private static int? TryReadIntSku(IntPtr h, Guid sku, string name)
+    {
+        if (Slapi.SLGetProductSkuInformation(h, ref sku, name, out var type, out var cb, out var ptr) != 0 || cb == 0 || type != 4 || ptr == IntPtr.Zero)
+            return null;
+
+        try { return Marshal.ReadInt32(ptr); }
+        finally { SlApiBuffer.TryFree(ptr); }
+    }
+
+    private static Guid? TryReadGuidSku(IntPtr h, Guid sku, string name)
+    {
+        var raw = TryReadStringSku(h, sku, name);
+        return Guid.TryParse(raw, out var guid) ? guid : null;
     }
 
     // malý hack: SLGetLicensingStatusInformation vyžaduje ref param pro count; držíme ho jako "scratch"
