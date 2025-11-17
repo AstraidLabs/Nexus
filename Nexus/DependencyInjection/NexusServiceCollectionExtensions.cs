@@ -24,6 +24,7 @@ public static class NexusServiceCollectionExtensions
         services.AddSingleton<ISkuReader, SkuReader>();
         services.AddSingleton<IWindowsInfoFacade, WindowsInfoFacade>();
         services.AddSingleton<NexusAPI>();
+        services.AddSingleton<NexusDiagnostics>();
 
         return services;
     }
