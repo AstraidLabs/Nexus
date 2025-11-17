@@ -10,9 +10,16 @@ using System.Runtime.Versioning;
 
 namespace Nexus.Core.Services;
 
+/// <summary>
+/// Čte systémové informace přímo z Windows API a překládá je na doménové modely knihovny.
+/// Implementace je soustředěná okolo native volání SLAPI, proto je označená jako <c>windows</c> only.
+/// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsSystemReader : IWindowsSystemReader
 {
+    /// <summary>
+    /// Vytvoří komplexní pohled na systém kombinací produktových informací a detailů o aktivaci.
+    /// </summary>
     public WindowsSystemData GetSystemData()
     {
         var product = GetProductInfo();
@@ -27,6 +34,11 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
         };
     }
 
+    /// <summary>
+    /// Získá základní produktové informace přímo z Win32 API a z <c>kernel32.dll</c>.
+    /// Hodnota <see cref="ProductInfo.ProductTypeCode"/> je mapována na čitelný název
+    /// a vydání OS se určuje z verze kernelu, protože tyto údaje nejlépe odrážejí aktuální build.
+    /// </summary>
     public ProductInfo GetProductInfo()
     {
         uint code = 0;
@@ -49,6 +61,11 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
         };
     }
 
+    /// <summary>
+    /// Vrátí detailní informace o aktivaci Windows včetně kanálu, částečného produktového klíče
+    /// a stavu pravosti. Metoda postupně zjišťuje všechny dostupné SKU, vybere relevantní záznam
+    /// a pro něj načte kompletní detail.
+    /// </summary>
     public ActivationInfo GetActivationInfo()
     {
         IntPtr h = IntPtr.Zero;
@@ -59,21 +76,21 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
 
             var app = new Guid(WellKnown.WindowsAppId);
 
-            // Získej list SKU ID pro Windows
+            // Získej seznam všech SKU ID pro Windows, který se vrací jako pole GUIDů na unmanaged haldě.
             uint count = 0;
             IntPtr idsPtr = IntPtr.Zero;
             var hr = Slapi.SLGetSLIDList(h, 0, ref app, 1, ref count, out idsPtr);
             if (hr != 0 || count == 0 || idsPtr == IntPtr.Zero)
                 return Unknown();
 
-            // Pole GUIDů (16 bajtů na GUID)
+            // Výběr SKU probíhá heuristicky: preferujeme licencovaný záznam, jinak první dostupný.
             Guid? pickedSku = null;
             for (int i = 0; i < count; i++)
             {
                 var skuPtr = idsPtr + (i * 16);
                 var skuId = Marshal.PtrToStructure<Guid>(skuPtr);
 
-                // Zkusíme načíst status pro dané SKU
+                // Přečteme minimální stav pro aktuální SKU, abychom zjistili, jestli jde o licencovaný build.
                 var info = ReadStatusForSku(h, app, skuId);
                 if (info is { Status: LicensingStatus.Licensed })
                 {
@@ -81,17 +98,17 @@ public sealed class WindowsSystemReader : IWindowsSystemReader
                     break;
                 }
 
-                // fallback: první nenulový
+                // Pokud jsme licencovaný SKU nenašli, držíme si alespoň první validní identifikátor pro pozdější čtení.
                 pickedSku ??= skuId;
             }
 
-            // bezpečnost: uvolnit návrat z SLGetSLIDList (alokováno API)
+            // Uvolníme paměť alokovanou SLAPI (jinak by došlo k úniku unmanaged bloku).
             SlApiBuffer.TryFree(idsPtr);
 
             if (pickedSku is null)
                 return Unknown();
 
-            // Finální načtení pro vybraný SKU
+            // Načteme kompletní detailní informace o zvoleném SKU – včetně stavu pravosti a produktového klíče.
             return ReadFullActivationInfo(h, app, pickedSku.Value);
         }
         finally
