@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Nexus;
 using Nexus.Core.Abstractions;
 using Nexus.Core.Services;
 using System;
@@ -25,6 +26,19 @@ public static class NexusServiceCollectionExtensions
         services.AddSingleton<IWindowsInfoFacade, WindowsInfoFacade>();
         services.AddSingleton<NexusAPI>();
         services.AddSingleton<NexusDiagnostics>();
+        services.AddSingleton<NexusSnapshotPresenter>();
+        services.AddSingleton(provider =>
+        {
+            var facade = provider.GetRequiredService<IWindowsInfoFacade>();
+            return NexusClient.Create(facade, options =>
+            {
+                var logger = provider.GetService<Action<NexusLogEntry>>();
+                if (logger is not null)
+                {
+                    options.LogSink = logger;
+                }
+            });
+        });
 
         return services;
     }
