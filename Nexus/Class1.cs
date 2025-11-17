@@ -55,6 +55,32 @@ public sealed class NexusAPI
     public IReadOnlyList<SlSkuEntry> GetSkuEntries() => Execute(_facade.GetSkus, "Nepodařilo se načíst seznam SKU.");
     public NexusOperationResult<IReadOnlyList<SlSkuEntry>> TryGetSkuEntries() => TryExecute(_facade.GetSkus, "Nepodařilo se načíst seznam SKU.");
 
+    /// <summary>
+    /// Obecná varianta pro volání libovolné operace nad <see cref="IWindowsInfoFacade"/> s ošetřením výjimek.
+    /// Díky generickému parametru lze jednoduše rozšířit API o další čtecí metody bez nutnosti duplicitního kódu.
+    /// </summary>
+    /// <typeparam name="T">Typ dat, která operace vrací.</typeparam>
+    /// <param name="action">Delegát vykonávající operaci nad facádou.</param>
+    /// <param name="context">Kontextová zpráva použitá při chybě.</param>
+    public T Execute<T>(Func<IWindowsInfoFacade, T> action, string context)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return Execute(() => action(_facade), context);
+    }
+
+    /// <summary>
+    /// Obecná varianta pro volání libovolné operace nad <see cref="IWindowsInfoFacade"/>, která nikdy nevyvolá výjimku.
+    /// Výsledek je zabalen do <see cref="NexusOperationResult{T}"/> a je tak vhodný například pro UI nebo skripty.
+    /// </summary>
+    /// <typeparam name="T">Typ dat, která operace vrací.</typeparam>
+    /// <param name="action">Delegát vykonávající operaci nad facádou.</param>
+    /// <param name="context">Kontextová zpráva použitá při chybě.</param>
+    public NexusOperationResult<T> TryExecute<T>(Func<IWindowsInfoFacade, T> action, string context)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return TryExecute(() => action(_facade), context);
+    }
+
     private static T Execute<T>(Func<T> action, string context)
     {
         try
