@@ -4,4 +4,5 @@
     <Platform Name="x64" />
   </Configurations>
   <Project Path="Nexus/Nexus.csproj" />
+  <Project Path="Nexus.ConsoleTest/Nexus.ConsoleTest.csproj" />
 </Solution>
