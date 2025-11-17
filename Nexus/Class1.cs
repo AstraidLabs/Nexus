@@ -128,8 +128,8 @@ public sealed class NexusAPI
         {
             Supported = false,
             Enabled = false,
-            Sku = "N/A",
-            State = "N/A"
+            Sku = null,
+            State = null
         };
 
         public IReadOnlyList<SlSkuEntry> GetSkus() => Array.Empty<SlSkuEntry>();
@@ -153,7 +153,7 @@ public sealed class NexusOperationResult<T>
     public string? ErrorMessage { get; }
     public Exception? Exception { get; }
 
-    public bool Success => Exception is null;
+    public bool IsSuccess => Exception is null;
 
     public static NexusOperationResult<T> Success(T data) => new(data, null, null);
 
